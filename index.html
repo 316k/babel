@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Babel</title>
+        <meta charset="utf-8" />
+        <script src="jquery-1.11.0.min.js"></script>
+        <script src="jquery.color.js"></script>
+        <script>
+            function randomInt(min, max) {
+                return Math.floor(Math.random() * (max - min + 1) + min);
+            }
+
+            var grid = {
+                height: 17,
+                width: 10,
+                grid: null,
+
+                init: function() {
+                    this.grid = new Array();
+                    for(i=0; i < this.height; i++) {
+                        this.grid[i] = new Array();
+                        for(j=0; j < this.width; j++) {
+                            this.grid[i][j] = false;
+                        }
+                    }
+                },
+
+                refresh: function() {
+                    $('.column.active').removeClass('active');
+                    for(i=0; i < this.height; i++) {
+                        for(j=0; j < this.width; j++) {
+                            if(this.grid[i][j]) {
+                                $('.row:nth-child(' + (i+2) + ')').children('.column:nth-child(' + (j+1) + ')').addClass('active');
+                            }
+                        }
+                    }
+                },
+
+                activate: function(x, y) {
+                    this.grid[y][x] = true;
+                },
+
+                active: function(x, y) {
+                    return (y < this.height) ? this.grid[y][x] : true;
+                },
+
+                dump: function() {
+                    for(i=0; i<this.height; i++) {
+                        var txt = "";
+                        for(j=0; j<this.width; j++) {
+                            txt += (this.grid[i][j] ? 'O' : '.');
+                        }
+                        console.debug(txt);
+                    }
+                }
+            }
+
+            var bloc = {
+                x: 4,
+                y: grid.height - 1,
+                width: 3,
+                speed: 4, // Blocs/s
+                lastmovement: null,
+
+                init: function() {
+                    this.lastmovement = window.performance.now();
+                },
+
+                refresh: function() {
+                    $('.column.on').removeClass('on');
+                    var first_bloc = $('.row:nth-child(' + Math.floor(this.y + 2) + ')').children('.column:nth-child(' + Math.floor(this.x + 1) + ')');
+
+                    for(i=0; i<this.width; i++) {
+                        first_bloc.addClass('on');
+                        first_bloc = first_bloc.next();
+                    }
+                },
+
+                move: function() {
+                    if(this.speed == 0) {
+                        return;
+                    }
+
+                    var now = window.performance.now();
+
+                    // Deplacement : v = dx/dt => dx = v*dt
+                    if(Math.floor(this.x + this.speed * (now - this.lastmovement)/1000) != Math.floor(this.x)) {
+
+                        this.x += this.speed * (now - this.lastmovement)/1000;
+
+                        this.lastmovement = now;
+
+                        if(this.x < 1 && this.speed < 0) {
+                            this.speed = Math.abs(this.speed);
+                            this.x = 0;
+                        } else if(this.x + this.width > grid.width + 1 && this.speed > 0) {
+                            this.speed = -Math.abs(this.speed);
+                            this.x = grid.width - this.width;
+                        }
+                    }
+                },
+
+                click: function() {
+                    var speed = this.speed;
+                    this.speed = 0;
+
+                    // Update structure
+                    var blocs = [];
+                    for(i=0; i < this.width; i++) {
+                        if(grid.active(i + Math.floor(this.x), Math.floor(this.y) + 1)) {
+                            grid.activate(i + Math.floor(this.x), Math.floor(this.y));
+                            blocs[i] = true;
+                        } else {
+                            blocs[i] = false;
+                        }
+                    }
+
+                    var start = -1;
+
+                    this.width = 0;
+                    var x_found = false;
+                    for(i=0; i < blocs.length; i++) {
+                        if(blocs[i]) {
+                            this.width++;
+                        }
+
+                        if(!x_found && blocs[i]) {
+                            this.x = Math.floor(this.x) + i;
+                            x_found = true;
+                        }
+                    }
+
+                    grid.refresh();
+
+                    if(this.y == 0) {
+                        this.win();
+                    } else if(this.width == 0) {
+                        this.loose();
+                    } else {
+                        this.y--;
+                        this.speed = speed/Math.abs(speed) * (Math.abs(speed) + 1);
+                    }
+
+                    this.refresh();
+                },
+
+                loose: function() {
+                    $('#title').text('Ya lost !!');
+                    loop = function() {};
+                    $('html').unbind('click').unbind('keypress');
+                },
+
+                win: function() {
+                    $('#title').text('Ya Won !! U r Great great poeple !!1');
+                    loop = function() {};
+                    $('html').unbind('click').unbind('keypress');
+                }
+            }
+
+            $(document).ready(function(){
+                grid.init();
+                bloc.init();
+                $('html').click(setup).keypress(setup);
+                var row = $('.row');
+                var column = $('.column').first();
+
+                for(i=0; i<grid.width; i++) {
+                    column.clone().appendTo($('.row').first());
+                }
+                column.remove();
+
+                for(i=0; i<grid.height-1; i++) {
+                    row.clone().appendTo($('body'));
+                }
+            });
+
+            function setup() {
+                $('html').unbind('click').click(function() {
+                    bloc.click();
+                }).unbind('keypress').keypress(function() {
+                    bloc.click();
+                });
+                $('#title').text(' ');
+                setTimeout(loop, 100);
+            }
+
+            function loop() {
+                bloc.refresh();
+                bloc.move();
+                setTimeout(loop, 100);
+            }
+        </script>
+        <style>
+            html {
+                overflow: hidden;
+                height: 100%;
+            }
+
+            body {
+                padding: 0;
+                margin: 0;
+                background-color: black;
+                height: 92%;
+                width: 100%;
+                border: 0;
+            }
+
+            #title {
+                margin: 1%;
+                height: 6%;
+                color: lightgreen;
+            }
+
+            .row {
+                width: 70%;
+                height: 5%;
+                margin: auto;
+                border: 1px solid green;
+                max-width: 400px;
+            }
+
+            .column {
+                width: 10%;
+                display: inline-block;
+                height: 100%;
+                box-shadow: inset 0px 0px 5px green;
+                background-color: lightgreen;
+            }
+
+            .column.active {
+                background-color: green;
+            }
+
+            .column.on {
+                background-color: darkgreen;
+            }
+        </style>
+    </head>
+    <body>
+        <h1 id="title">Babel - Click to begin</h1>
+        <div class="column"></div>
+        <div class="row">
+        </div>
+    </body>
+</html>
