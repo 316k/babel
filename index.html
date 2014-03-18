@@ -145,9 +145,13 @@
                 },
 
                 loose: function() {
-                    $('#title').text('Ya lost !!');
+                    $('#title').text('Ya lost !! Press key or click to try again');
                     loop = function() {};
-                    $('html').unbind('click').unbind('keypress');
+                    $('html').unbind('click').unbind('keypress').keypress(function() {
+                        window.location.assign("?restart");
+                    }).click(function() {
+                        window.location.assign("?restart");
+                    });
                 },
 
                 win: function() {
@@ -161,6 +165,10 @@
                 grid.init();
                 bloc.init();
                 $('html').click(setup).keypress(setup);
+
+                if(window.location.search == "?restart")
+                    $('html').click();
+
                 var row = $('.row');
                 var column = $('.column').first();
 
